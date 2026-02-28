@@ -247,7 +247,7 @@ export interface DeviceData {
 }
 
 // View modes for the digital twin
-export type ViewMode = 'globe' | 'interior' | 'exterior';
+export type ViewMode = 'globe' | 'exterior';
 
 // Transition states for view changes
 export type TransitionState = 'idle' | 'zooming-in' | 'zooming-out' | 'loading';

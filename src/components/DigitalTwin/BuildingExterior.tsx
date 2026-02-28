@@ -10,8 +10,21 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { Text } from '@react-three/drei';
+import { Text, Html } from '@react-three/drei';
 import { APSSwitchVendor } from './APSSwitchVendor';
+
+// ── Static floor metadata (shown in always-visible side cards) ─────────────
+const FLOOR_META = [
+    { racks: 12, servers: 48,  role: 'Compute',    status: 'online'  },
+    { racks: 10, servers: 40,  role: 'Storage',    status: 'online'  },
+    { racks: 14, servers: 56,  role: 'Compute',    status: 'online'  },
+    { racks: 8,  servers: 32,  role: 'Networking', status: 'warning' },
+    { racks: 12, servers: 48,  role: 'Compute',    status: 'online'  },
+    { racks: 10, servers: 40,  role: 'GPU Cluster', status: 'online' },
+    { racks: 6,  servers: 24,  role: 'Management', status: 'online'  },
+    { racks: 14, servers: 56,  role: 'Compute',    status: 'online'  },
+    { racks: 4,  servers: 16,  role: 'DMZ / Edge', status: 'online'  },
+];
 
 interface BuildingExteriorProps {
     floors: number;
@@ -69,8 +82,10 @@ export function BuildingExterior({
 
             {/* Each floor */}
             {Array.from({ length: floors }, (_, i) => {
-                const floorY = i * floorHeight;
+                const floorY   = i * floorHeight;
                 const isActive = i + 1 === currentFloor;
+                const meta     = FLOOR_META[i] ?? { racks: 8, servers: 32, role: 'General', status: 'online' };
+                const dotColor = meta.status === 'warning' ? '#ffaa00' : '#00ff88';
 
                 return (
                     <group key={`floor-${i}`} position={[0, floorY, 0]}>
@@ -79,7 +94,7 @@ export function BuildingExterior({
                             <boxGeometry args={[buildingWidth, 0.15, buildingDepth]} />
                         </mesh>
 
-                        {/* Glass – FRONT (clickable) */}
+                        {/* Glass – FRONT (clickable to highlight) */}
                         <mesh
                             position={[0, floorHeight / 2, buildingDepth / 2]}
                             material={isActive ? materials.activeFloor : materials.glass}
@@ -122,7 +137,7 @@ export function BuildingExterior({
                             </mesh>
                         ))}
 
-                        {/* Floor label */}
+                        {/* Floor label (on front glass) */}
                         <group position={[0, floorHeight / 2, buildingDepth / 2 + 0.06]}>
                             <mesh position={[0, 0, 0]}>
                                 <planeGeometry args={[1.8, 1.2]} />
@@ -136,12 +151,91 @@ export function BuildingExterior({
                             <Text position={[0, 0, 0.01]} fontSize={0.8}
                                   color={isActive ? '#00ffff' : '#cccccc'}
                                   anchorX="center" anchorY="middle"
-                                  fontWeight={isActive ? 700 : 500}
-                                  outlineWidth={isActive ? 0.02 : 0}
-                                  outlineColor={isActive ? '#003366' : '#000000'}>
+                                  sdfGlyphSize={64}>
                                 {`F${i + 1}`}
                             </Text>
                         </group>
+
+                        {/* ── Always-visible floor info card (left of building) ── */}
+                        <Html
+                            position={[-buildingWidth / 2 - 5, floorHeight / 2, 0]}
+                            center
+                            distanceFactor={20}
+                            zIndexRange={[10, 0]}
+                        >
+                            <div
+                                onClick={() => onFloorClick(i + 1)}
+                                style={{
+                                    background: isActive
+                                        ? 'rgba(0,40,80,0.97)'
+                                        : 'rgba(8,10,20,0.95)',
+                                    backdropFilter: 'blur(12px)',
+                                    border: isActive
+                                        ? '1.5px solid rgba(0,188,235,0.8)'
+                                        : '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '12px',
+                                    padding: '14px 18px',
+                                    minWidth: '200px',
+                                    fontFamily: "'Inter', -apple-system, sans-serif",
+                                    cursor: 'pointer',
+                                    boxShadow: isActive
+                                        ? '0 0 24px rgba(0,188,235,0.45), 0 6px 20px rgba(0,0,0,0.6)'
+                                        : '0 6px 20px rgba(0,0,0,0.6)',
+                                    transition: 'all 0.2s ease',
+                                    userSelect: 'none',
+                                }}
+                            >
+                                {/* Floor number row */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                    <span style={{
+                                        fontSize: 22, fontWeight: 800,
+                                        color: isActive ? '#00e8ff' : '#e2e8f0',
+                                        letterSpacing: '0.02em',
+                                    }}>
+                                        Floor {i + 1}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <div style={{
+                                            width: 10, height: 10, borderRadius: '50%',
+                                            background: dotColor,
+                                            boxShadow: `0 0 7px ${dotColor}`,
+                                        }} />
+                                        <span style={{
+                                            fontSize: 13, color: dotColor,
+                                            fontWeight: 700, letterSpacing: '0.04em',
+                                        }}>
+                                            {meta.status === 'warning' ? 'WARN' : 'LIVE'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Role badge */}
+                                <div style={{
+                                    display: 'inline-block',
+                                    background: isActive ? 'rgba(0,188,235,0.18)' : 'rgba(255,255,255,0.07)',
+                                    border: isActive ? '1px solid rgba(0,188,235,0.4)' : '1px solid rgba(255,255,255,0.1)',
+                                    borderRadius: 5, padding: '3px 10px',
+                                    fontSize: 12, color: isActive ? '#00bceb' : '#9ca3af',
+                                    letterSpacing: '0.07em', fontWeight: 600,
+                                    marginBottom: 12,
+                                }}>
+                                    {meta.role.toUpperCase()}
+                                </div>
+
+                                {/* Stats row */}
+                                <div style={{ display: 'flex', gap: 16 }}>
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: '#00bceb', lineHeight: 1 }}>{meta.racks}</div>
+                                        <div style={{ fontSize: 11, color: '#4b5563', letterSpacing: '0.05em', marginTop: 3 }}>RACKS</div>
+                                    </div>
+                                    <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
+                                    <div style={{ textAlign: 'center', flex: 1 }}>
+                                        <div style={{ fontSize: 22, fontWeight: 800, color: '#a78bfa', lineHeight: 1 }}>{meta.servers}</div>
+                                        <div style={{ fontSize: 11, color: '#4b5563', letterSpacing: '0.05em', marginTop: 3 }}>SERVERS</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Html>
                     </group>
                 );
             })}
@@ -203,6 +297,172 @@ export function BuildingExterior({
                 position={[buildingWidth / 2 + 9.5, 3.5, 4.0]}
                 color="#ff3344" intensity={2.5} distance={12}
             />
+
+            {/* ── Wire Tray System ─────────────────────────────────────────────── */}
+            {/* Seg A: vertical tray down building right wall face (x=7.08, z=0)  */}
+            {/* Seg B: Z-run along wall base (z: 0 → -1.28, y=0.50, x≈7.10)     */}
+            {/* Seg C: outward horizontal run (x: 7.30 → 10.04, z=-1.28, y=0.50) */}
+            {/* Seg D: vertical riser to switch table height (y: 0.50 → 1.92)    */}
+            {/* Cables: orange (fiber), cyan (network), yellow (power) — visible  */}
+            <group>
+
+                {/* ═══ SEGMENT A – Vertical tray on right wall face, full building height ═══ */}
+                {/* Runs y=0 → y=buildingHeight (36), one bracket per floor midpoint          */}
+                {/* Tray back plate flush to wall */}
+                <mesh castShadow position={[7.08, buildingHeight / 2, 0]}>
+                    <boxGeometry args={[0.05, buildingHeight, 0.30]} />
+                    <meshStandardMaterial color="#252532" metalness={0.82} roughness={0.28} />
+                </mesh>
+                {/* Left rail */}
+                <mesh castShadow position={[7.14, buildingHeight / 2, -0.14]}>
+                    <boxGeometry args={[0.04, buildingHeight, 0.04]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.85} roughness={0.25} />
+                </mesh>
+                {/* Right rail */}
+                <mesh castShadow position={[7.14, buildingHeight / 2, 0.14]}>
+                    <boxGeometry args={[0.04, buildingHeight, 0.04]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.85} roughness={0.25} />
+                </mesh>
+                {/* Wall clamp brackets – one per floor at floor midpoint */}
+                {Array.from({ length: floors }, (_, i) => floorHeight / 2 + i * floorHeight).map((y, bi) => (
+                    <mesh key={`va-${bi}`} castShadow position={[7.06, y, 0]}>
+                        <boxGeometry args={[0.10, 0.06, 0.32]} />
+                        <meshStandardMaterial color="#1a1a22" metalness={0.85} roughness={0.25} />
+                    </mesh>
+                ))}
+                {/* CABLES – orange fiber (runs full height, all floors connected) */}
+                <mesh position={[7.15, buildingHeight / 2, -0.07]}>
+                    <boxGeometry args={[0.05, buildingHeight, 0.05]} />
+                    <meshStandardMaterial color="#ff6600" emissive="#552200" emissiveIntensity={0.4} roughness={0.65} />
+                </mesh>
+                {/* CABLES – cyan network */}
+                <mesh position={[7.15, buildingHeight / 2, 0.00]}>
+                    <boxGeometry args={[0.05, buildingHeight, 0.05]} />
+                    <meshStandardMaterial color="#00bbff" emissive="#003344" emissiveIntensity={0.4} roughness={0.65} />
+                </mesh>
+                {/* CABLES – yellow power */}
+                <mesh position={[7.15, buildingHeight / 2, 0.07]}>
+                    <boxGeometry args={[0.05, buildingHeight, 0.05]} />
+                    <meshStandardMaterial color="#ffcc00" emissive="#443300" emissiveIntensity={0.4} roughness={0.65} />
+                </mesh>
+
+                {/* ═══ Corner A → B (vertical wall tray to Z-base run) ═══ */}
+                <mesh castShadow position={[7.11, 0.50, -0.11]}>
+                    <boxGeometry args={[0.18, 0.30, 0.24]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+
+                {/* ═══ SEGMENT B – Z-run along wall base (z: 0 → -1.28) ═══ */}
+                <mesh castShadow position={[7.08, 0.50, -0.64]}>
+                    <boxGeometry args={[0.05, 0.30, 1.28]} />
+                    <meshStandardMaterial color="#252532" metalness={0.82} roughness={0.28} />
+                </mesh>
+                <mesh castShadow position={[7.21, 0.42, -0.64]}>
+                    <boxGeometry args={[0.22, 0.04, 1.28]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+                <mesh castShadow position={[7.21, 0.55, -0.64]}>
+                    <boxGeometry args={[0.22, 0.10, 1.28]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.82} roughness={0.28} />
+                </mesh>
+                {/* Cables in segment B */}
+                <mesh position={[7.19, 0.51, -0.64]}>
+                    <boxGeometry args={[0.05, 0.05, 1.28]} />
+                    <meshStandardMaterial color="#ff6600" emissive="#552200" emissiveIntensity={0.4} roughness={0.65} />
+                </mesh>
+                <mesh position={[7.21, 0.51, -0.64]}>
+                    <boxGeometry args={[0.05, 0.05, 1.28]} />
+                    <meshStandardMaterial color="#00bbff" emissive="#003344" emissiveIntensity={0.4} roughness={0.65} />
+                </mesh>
+                <mesh position={[7.23, 0.51, -0.64]}>
+                    <boxGeometry args={[0.05, 0.05, 1.28]} />
+                    <meshStandardMaterial color="#ffcc00" emissive="#443300" emissiveIntensity={0.4} roughness={0.65} />
+                </mesh>
+
+                {/* ═══ Corner B → C (Z-run to outward X-run) ═══ */}
+                <mesh castShadow position={[7.21, 0.50, -1.28]}>
+                    <boxGeometry args={[0.24, 0.30, 0.24]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+
+                {/* ═══ SEGMENT C – Outward horizontal run (x: 7.33 → 10.04, z=-1.28) ═══ */}
+                {/* length=2.71, center x=8.685 */}
+                <mesh castShadow position={[8.685, 0.42, -1.28]}>
+                    <boxGeometry args={[2.71, 0.04, 0.30]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+                {/* Far rail */}
+                <mesh castShadow position={[8.685, 0.55, -1.43]}>
+                    <boxGeometry args={[2.71, 0.12, 0.04]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.82} roughness={0.28} />
+                </mesh>
+                {/* Near rail */}
+                <mesh castShadow position={[8.685, 0.55, -1.13]}>
+                    <boxGeometry args={[2.71, 0.12, 0.04]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.82} roughness={0.28} />
+                </mesh>
+                {/* Mounting brackets */}
+                {[7.70, 8.685, 9.67].map((bx, bi) => (
+                    <mesh key={`hb-${bi}`} castShadow position={[bx, 0.27, -1.28]}>
+                        <boxGeometry args={[0.06, 0.32, 0.34]} />
+                        <meshStandardMaterial color="#1c1c26" metalness={0.80} roughness={0.32} />
+                    </mesh>
+                ))}
+                {/* Cables in segment C */}
+                <mesh position={[8.685, 0.52, -1.34]}>
+                    <boxGeometry args={[2.71, 0.05, 0.05]} />
+                    <meshStandardMaterial color="#ff6600" emissive="#552200" emissiveIntensity={0.5} roughness={0.65} />
+                </mesh>
+                <mesh position={[8.685, 0.52, -1.28]}>
+                    <boxGeometry args={[2.71, 0.05, 0.05]} />
+                    <meshStandardMaterial color="#00bbff" emissive="#003344" emissiveIntensity={0.5} roughness={0.65} />
+                </mesh>
+                <mesh position={[8.685, 0.52, -1.22]}>
+                    <boxGeometry args={[2.71, 0.05, 0.05]} />
+                    <meshStandardMaterial color="#ffcc00" emissive="#443300" emissiveIntensity={0.5} roughness={0.65} />
+                </mesh>
+
+                {/* ═══ Corner C → D (horizontal to vertical riser) ═══ */}
+                <mesh castShadow position={[10.04, 0.52, -1.28]}>
+                    <boxGeometry args={[0.24, 0.24, 0.30]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+
+                {/* ═══ SEGMENT D – Vertical riser (y: 0.64 → 1.92, x=10.04, z=-1.28) ═══ */}
+                <mesh castShadow position={[10.04, 1.28, -1.28]}>
+                    <boxGeometry args={[0.05, 1.28, 0.30]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+                {/* Far rail */}
+                <mesh castShadow position={[10.04, 1.28, -1.43]}>
+                    <boxGeometry args={[0.04, 1.28, 0.05]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.82} roughness={0.28} />
+                </mesh>
+                {/* Near rail */}
+                <mesh castShadow position={[10.04, 1.28, -1.13]}>
+                    <boxGeometry args={[0.04, 1.28, 0.05]} />
+                    <meshStandardMaterial color="#1e1e28" metalness={0.82} roughness={0.28} />
+                </mesh>
+                {/* Cables in riser */}
+                <mesh position={[10.04, 1.28, -1.34]}>
+                    <boxGeometry args={[0.05, 1.28, 0.05]} />
+                    <meshStandardMaterial color="#ff6600" emissive="#552200" emissiveIntensity={0.5} roughness={0.65} />
+                </mesh>
+                <mesh position={[10.04, 1.28, -1.28]}>
+                    <boxGeometry args={[0.05, 1.28, 0.05]} />
+                    <meshStandardMaterial color="#00bbff" emissive="#003344" emissiveIntensity={0.5} roughness={0.65} />
+                </mesh>
+                <mesh position={[10.04, 1.28, -1.22]}>
+                    <boxGeometry args={[0.05, 1.28, 0.05]} />
+                    <meshStandardMaterial color="#ffcc00" emissive="#443300" emissiveIntensity={0.5} roughness={0.65} />
+                </mesh>
+
+                {/* Top termination fitting */}
+                <mesh castShadow position={[10.10, 1.94, -1.28]}>
+                    <boxGeometry args={[0.20, 0.18, 0.30]} />
+                    <meshStandardMaterial color="#252532" metalness={0.80} roughness={0.30} />
+                </mesh>
+            </group>
 
             {/* Roof railing */}
             {([-buildingWidth / 2 - 0.25, buildingWidth / 2 + 0.25] as number[]).map((x, i) => (
